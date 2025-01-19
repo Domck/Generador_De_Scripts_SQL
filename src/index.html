@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Scripts SQL - Claro Perú</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            background-color: #d9d9d9; 
+            color: #333333; 
+            font-family: 'Roboto', sans-serif;
+        }
+        h1 {
+            background: linear-gradient(90deg, #d8232a, #b81e23);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .btn-primary {
+            background-color: #b81e23;
+            border-color: #b81e23;
+            font-size: 1.1rem;
+            font-weight: bold;
+            padding: 10px 20px;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #d8232a;
+            border-color: #d8232a;
+            transform: scale(1.05);
+            box-shadow: 0 4px 10px rgba(216, 35, 42, 0.5);
+        }
+        .card {
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+        .form-control, .form-select {
+            border-radius: 5px;
+            border: 1px solid #e0e0e0;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #d8232a;
+            box-shadow: 0 0 5px rgba(216, 35, 42, 0.5);
+        }
+        #result {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            transform: scale(0.95);
+            opacity: 0;
+        }
+        #result.show {
+            transform: scale(1);
+            opacity: 1;
+        }
+        .alert {
+            font-size: 1.2rem;
+            padding: 15px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>Generador de Scripts SQL</h1>
+
+        <div class="card mb-4 p-4">
+            <div class="card-body">
+                <h5 class="card-title">Automatización de configuraciones concurrentes </h5>
+                <form id="upload-form">
+                    <div class="mb-3">
+                        <label for="esquema" class="form-label">Esquema</label>
+                        <input type="text" class="form-control" id="esquema" name="esquema" placeholder="Ingresa el nombre del esquema" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Agregar archivo (Excel)</label>
+                        <input type="file" class="form-control" id="file" name="file" accept=".xlsx">
+                    </div>
+                    <div class="mb-3">
+                        <label for="serverFile" class="form-label">O seleccionar un archivo existente en la carpeta</label>
+                        <select id="serverFile" name="serverFile" class="form-select">
+                            <option value="" selected>Seleccionar archivo</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Generar Script</button>
+                </form>
+            </div>
+        </div>
+        <div class="card d-none" id="result-card">
+            <div class="card-body">
+                <h5 class="card-title">Resultado</h5>
+                <div id="result" class="alert"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function cargarArchivosEnCarpeta() {
+            $.get('/list-files', function(data) {
+                const select = $('#serverFile');
+                select.empty();
+                select.append('<option value="" selected>Seleccionar archivo</option>');
+                data.forEach(file => {
+                    select.append(`<option value="${file}">${file}</option>`);
+                });
+            }).fail(function(err) {
+                console.error('Error al listar archivos:', err);
+            });
+        }
+
+        $(document).ready(function() {
+            cargarArchivosEnCarpeta();
+
+            $('#upload-form').submit(function(e) {
+                e.preventDefault();
+
+                const formData = new FormData(this);
+                const resultDiv = $('#result');
+                const resultCard = $('#result-card');
+
+                resultCard.addClass('d-none');
+
+                $.ajax({
+                    url: '/upload',
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function(response) {
+                        const url = window.URL.createObjectURL(new Blob([response]));
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = 'script_inserts.sql';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+
+                        resultDiv.removeClass('alert-danger').addClass('alert-success');
+                        resultDiv.text('¡Configuración culminada, revisa en descargas!');
+                        resultCard.removeClass('d-none');
+                        resultDiv.addClass('show');
+                    },
+                    error: function(xhr) {
+                        resultDiv.removeClass('alert-success').addClass('alert-danger');
+                        resultDiv.text(xhr.responseJSON?.error || 'Error al generar el script.');
+                        resultCard.removeClass('d-none');
+                        resultDiv.addClass('show');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
